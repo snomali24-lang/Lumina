@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUMINA — Génération Vidéo IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0a0a0f; --paper: #f5f2eb; --accent: #e8673a;
+    --gold: #c9a84c; --muted: #6b6860;
+    --red: #e84a4a; --green: #4ae89a; --purple: #9b6de8;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ink); color: var(--paper); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; opacity: 0.6; }
+  .bg-mesh { position: fixed; inset: 0; z-index: 0; background: radial-gradient(ellipse 60% 50% at 15% 20%, rgba(232,103,58,0.07) 0%, transparent 60%), radial-gradient(ellipse 50% 60% at 85% 80%, rgba(155,109,232,0.06) 0%, transparent 60%), radial-gradient(ellipse 80% 40% at 50% 50%, rgba(15,15,25,1) 0%, var(--ink) 100%); pointer-events: none; }
+
+  /* AGE GATE */
+  #ageGate { position: fixed; inset: 0; z-index: 9999; background: rgba(5,5,10,0.98); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(20px); }
+  .age-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 3rem 2.5rem; max-width: 420px; width: 90%; text-align: center; }
+  .age-icon { font-size: 2.5rem; margin-bottom: 1.5rem; }
+  .age-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+  .age-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.9; margin-bottom: 2rem; }
+  .age-desc strong { color: var(--paper); }
+  .age-buttons { display: flex; gap: 0.75rem; }
+  .age-yes { flex: 1; padding: 0.9rem; background: var(--accent); border: none; border-radius: 10px; color: white; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.1em; cursor: pointer; transition: opacity 0.2s; }
+  .age-yes:hover { opacity: 0.85; }
+  .age-no { flex: 1; padding: 0.9rem; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.72rem; cursor: pointer; }
+  .age-legal { margin-top: 1.2rem; font-size: 0.58rem; color: rgba(255,255,255,0.12); line-height: 1.7; }
+
+  /* LAYOUT */
+  .container { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 0 2rem; }
+  header { padding: 2rem 0 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: 0.15em; }
+  .logo span { color: var(--accent); }
+  .hf-badge { display: flex; align-items: center; gap: 0.5rem; background: rgba(255,173,0,0.08); border: 1px solid rgba(255,173,0,0.2); border-radius: 100px; padding: 0.35em 0.9em; font-size: 0.62rem; letter-spacing: 0.1em; color: #ffad00; }
+
+  /* API SETUP */
+  .api-setup { background: rgba(255,173,0,0.05); border: 1px solid rgba(255,173,0,0.15); border-radius: 16px; padding: 1.5rem 2rem; margin: 1.5rem 0; }
+  .api-setup-title { font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #ffad00; margin-bottom: 1rem; }
+  .api-row { display: flex; gap: 0.75rem; align-items: flex-end; }
+  .api-field-wrap { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+  .api-field-label { font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+  .api-input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0.75rem 1rem; color: var(--paper); font-family: 'DM Mono', monospace; font-size: 0.8rem; outline: none; transition: border-color 0.2s; flex: 1; }
+  .api-input:focus { border-color: #ffad00; }
+  .api-input::placeholder { color: rgba(255,255,255,0.2); }
+  .api-btn { padding: 0.75rem 1.5rem; background: #ffad00; border: none; border-radius: 10px; color: #0a0a0f; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.1em; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; flex-shrink: 0; }
+  .api-btn:hover { opacity: 0.85; }
+  .api-hint { font-size: 0.62rem; color: var(--muted); line-height: 1.6; margin-top: 0.6rem; }
+  .key-saved { font-size: 0.62rem; margin-top: 0.5rem; display: none; }
+  .key-saved.ok { color: var(--green); display: block; }
+  .key-saved.err { color: var(--red); display: block; }
+
+  /* HERO */
+  .hero { padding: 3.5rem 0 2rem; text-align: center; animation: fadeUp 0.6s ease both; }
+  .hero-eyebrow { font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.6em; }
+  .hero-eyebrow::before, .hero-eyebrow::after { content: ''; width: 2rem; height: 1px; background: var(--gold); opacity: 0.5; }
+  .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 5vw, 4rem); line-height: 1.1; margin-bottom: 0.8rem; }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 0.8rem; max-width: 440px; margin: 0 auto; line-height: 1.8; }
+
+  /* MODE TABS */
+  .mode-wrap { text-align: center; margin: 1.5rem 0; }
+  .mode-tabs { display: inline-flex; gap: 0.4rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 0.35rem; }
+  .mode-tab { padding: 0.5rem 1.2rem; border-radius: 8px; border: none; font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.08em; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--muted); }
+  .mode-tab.active { background: var(--accent); color: white; box-shadow: 0 3px 12px rgba(232,103,58,0.3); }
+  .mode-tab.active.adult-mode { background: var(--purple); box-shadow: 0 3px 12px rgba(155,109,232,0.3); }
+
+  /* STUDIO */
+  .studio { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 2rem; margin-bottom: 3rem; backdrop-filter: blur(10px); animation: fadeUp 0.6s 0.1s ease both; }
+  .studio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  @media(max-width:680px) { .studio-grid { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 0.5rem; }
+  label { font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  textarea, select { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--paper); font-family: 'DM Mono', monospace; font-size: 0.78rem; outline: none; transition: border-color 0.2s; }
+  textarea:focus, select:focus { border-color: var(--accent); background: rgba(232,103,58,0.04); }
+  textarea { padding: 0.9rem; resize: vertical; min-height: 120px; line-height: 1.7; }
+  textarea::placeholder { color: rgba(245,242,235,0.18); }
+  select { padding: 0.7rem 1rem; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236b6860' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem; }
+  select option { background: #1a1a22; }
+
+  /* UPLOAD */
+  .upload-zone { border: 1.5px dashed rgba(255,255,255,0.12); border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem; overflow: hidden; }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(232,103,58,0.04); }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { width: 36px; height: 36px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+  .upload-zone p { font-size: 0.68rem; color: var(--muted); line-height: 1.6; }
+  .upload-zone p strong { color: var(--paper); display: block; font-weight: 400; }
+  .preview-img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; position: absolute; inset: 0; }
+  .preview-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.55); border-radius: 10px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .upload-zone:hover .preview-overlay { opacity: 1; }
+
+  /* SETTINGS */
+  .settings-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-bottom: 1.5rem; }
+  @media(max-width:680px) { .settings-row { grid-template-columns: 1fr 1fr; } }
+  .range-wrapper { display: flex; flex-direction: column; gap: 0.45rem; }
+  .range-header { display: flex; justify-content: space-between; align-items: center; }
+  .range-value { font-size: 0.72rem; color: var(--accent); }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 3px; background: rgba(255,255,255,0.1); border-radius: 100px; padding: 0; border: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+
+  /* NEG PROMPT */
+  .neg-toggle { font-size: 0.6rem; color: var(--muted); cursor: pointer; letter-spacing: 0.08em; display: inline-flex; align-items: center; gap: 0.35em; margin-top: 0.25rem; background: none; border: none; padding: 0; }
+  .neg-toggle:hover { color: var(--paper); }
+  #negWrap { display: none; margin-top: 0.4rem; }
+  #negWrap.open { display: block; }
+
+  /* CHIPS */
+  .suggestions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+  .chip { padding: 0.25em 0.75em; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 100px; font-size: 0.6rem; color: var(--muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .chip:hover { color: var(--paper); border-color: rgba(255,255,255,0.18); }
+
+  /* PROVIDER */
+  .provider-bar { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 0.65rem 1rem; display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.25rem; font-size: 0.65rem; }
+  .pdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; animation: pulse-dot 2s infinite; }
+  .pdot.orange { background: var(--accent); box-shadow: 0 0 7px var(--accent); }
+  .pdot.purple { background: var(--purple); box-shadow: 0 0 7px var(--purple); }
+  .ptext { color: var(--muted); }
+  .ptext strong { color: var(--paper); }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* BUTTON */
+  .gen-btn { width: 100%; padding: 1rem; background: var(--accent); color: white; border: none; border-radius: 12px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; overflow: hidden; }
+  .gen-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 55%); pointer-events: none; }
+  .gen-btn.adult { background: var(--purple); }
+  .gen-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(232,103,58,0.35); }
+  .gen-btn.adult:hover:not(:disabled) { box-shadow: 0 8px 28px rgba(155,109,232,0.35); }
+  .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-inner { display: flex; align-items: center; justify-content: center; gap: 0.55rem; }
+
+  /* LOADING */
+  .loading-panel { display: none; margin-top: 2rem; text-align: center; padding: 2.5rem 1rem; }
+  .loading-panel.visible { display: block; }
+  .spinner { width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.05); border-top-color: var(--accent); animation: spin 1s linear infinite; margin: 0 auto 1.25rem; }
+  .spinner.purple { border-top-color: var(--purple); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.1em; }
+  .loading-sub { font-size: 0.6rem; color: rgba(255,255,255,0.2); margin-top: 0.3rem; }
+  .progress-bar { width: 100%; max-width: 360px; height: 2px; background: rgba(255,255,255,0.06); border-radius: 100px; margin: 1.25rem auto 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); border-radius: 100px; width: 0%; transition: width 0.6s ease; }
+  .progress-fill.purple { background: linear-gradient(90deg, var(--purple), #d48fe8); }
+  .steps { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; align-items: center; }
+  .step { font-size: 0.62rem; letter-spacing: 0.07em; color: rgba(255,255,255,0.12); transition: color 0.4s; display: flex; align-items: center; gap: 0.45em; }
+  .step.active { color: var(--paper); }
+  .step.done { color: var(--gold); }
+  .sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* OUTPUT */
+  .output-panel { margin-top: 2rem; display: none; }
+  .output-panel.visible { display: block; }
+  .out-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+  .out-title { font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  .out-actions { display: flex; gap: 0.4rem; }
+  .act-btn { padding: 0.35em 0.8em; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.62rem; cursor: pointer; transition: color 0.2s; }
+  .act-btn:hover { color: var(--paper); }
+  .video-frame { background: #000; border-radius: 14px; overflow: hidden; aspect-ratio: 16/9; position: relative; border: 1px solid rgba(255,255,255,0.08); }
+  .video-frame video { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ERROR */
+  .err-box { background: rgba(232,74,74,0.07); border: 1px solid rgba(232,74,74,0.22); border-radius: 10px; padding: 0.9rem 1.1rem; font-size: 0.7rem; color: rgba(232,74,74,0.9); line-height: 1.7; margin-top: 1rem; display: none; }
+  .err-box.visible { display: block; }
+
+  footer { border-top: 1px solid rgba(255,255,255,0.05); padding: 1.75rem 0; text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.12); letter-spacing: 0.1em; position: relative; z-index: 1; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+
+<div id="ageGate">
+  <div class="age-card">
+    <div class="age-icon">🔞</div>
+    <div class="age-title">Vérification d'âge requise</div>
+    <div class="age-desc">Ce studio génère des vidéos IA incluant des <strong>scènes d'action</strong>, de <strong>violence fictive</strong> et du <strong>contenu adulte entre adultes consentants</strong>.<br><br>Vous devez avoir <strong>18 ans ou plus</strong>.</div>
+    <div class="age-buttons">
+      <button class="age-yes" onclick="confirmAge()">✓ J'ai 18 ans ou plus</button>
+      <button class="age-no" onclick="rejectAge()">Moins de 18 ans</button>
+    </div>
+    <div class="age-legal">En confirmant, vous attestez avoir l'âge légal requis et acceptez l'entière responsabilité du contenu généré.</div>
+  </div>
+</div>
+
+<div class="container">
+  <header>
+    <div class="logo">LUM<span>I</span>NA</div>
+    <div class="hf-badge">🤗 Hugging Face · Gratuit</div>
+  </header>
+
+  <div class="api-setup">
+    <div class="api-setup-title">🔑 Token Hugging Face</div>
+    <div class="api-row">
+      <div class="api-field-wrap">
+        <div class="api-field-label">Ton token (hf_...)</div>
+        <input class="api-input" type="password" id="hfKey" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+      </div>
+      <button class="api-btn" onclick="saveKey()">Enregistrer</button>
+    </div>
+    <div class="api-hint">Pas encore de token ? → huggingface.co/settings/tokens → New token → Read → "Make calls to Inference Providers"</div>
+    <div class="key-saved" id="keySaved"></div>
+  </div>
+
+  <section class="hero">
+    <div class="hero-eyebrow">Génération vidéo IA · 100% gratuit</div>
+    <h1>Donnez vie à vos<br><em>idées visuelles</em></h1>
+    <p>Décrivez une scène, importez une image, générez des vidéos réalistes avec Wan 2.1.</p>
+  </section>
+
+  <div class="mode-wrap">
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabC" onclick="setMode('creative')">🎬 Créatif / Action</button>
+      <button class="mode-tab" id="tabA" onclick="setMode('adult')">🔞 Adulte 18+</button>
+    </div>
+  </div>
+
+  <div class="studio">
+    <div class="provider-bar">
+      <div class="pdot orange" id="pdot"></div>
+      <div class="ptext" id="ptext">Mode <strong>Créatif / Action</strong> — <strong>Wan 2.1</strong> via Hugging Face · Scènes d'action, violence fictive</div>
+    </div>
+
+    <div class="studio-grid">
+      <div class="field">
+        <label>Prompt de génération</label>
+        <textarea id="prompt" placeholder="Ex : Un ninja saute entre des toits sous la pluie, lumières néon, ralenti cinématique, Tokyo la nuit…"></textarea>
+        <div class="suggestions" id="chips">
+          <span class="chip" onclick="useChip(this)">Ninja sur les toits la nuit</span>
+          <span class="chip" onclick="useChip(this)">Explosion au ralenti</span>
+          <span class="chip" onclick="useChip(this)">Course-poursuite en voiture</span>
+          <span class="chip" onclick="useChip(this)">Duel à l'épée médiéval</span>
+        </div>
+        <button class="neg-toggle" onclick="toggleNeg()"><span id="negArrow">▸</span> Prompt négatif</button>
+        <div id="negWrap">
+          <textarea id="negPrompt" style="min-height:55px;" placeholder="Ex : flou, watermark, déformé…"></textarea>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Image de référence (optionnelle)</label>
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this)">
+          <div class="upload-icon">🖼️</div>
+          <p><strong>Déposer une image ici</strong>PNG, JPG, WEBP — max 10 Mo</p>
+          <div class="preview-overlay">✎ Changer</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div class="field">
+        <label>Style</label>
+        <select id="style">
+          <option value="cinematic">Cinématographique</option>
+          <option value="realistic">Hyperréaliste</option>
+          <option value="anime">Animé / Anime</option>
+          <option value="3d">3D Rendu</option>
+          <option value="noir">Noir & Blanc</option>
+          <option value="documentary">Documentaire</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Ratio</label>
+        <select id="ratio">
+          <option value="16:9">16:9 — Paysage</option>
+          <option value="9:16">9:16 — Portrait</option>
+          <option value="1:1">1:1 — Carré</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Durée</label>
+        <select id="duration">
+          <option value="3">3 secondes</option>
+          <option value="5" selected>5 secondes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-row" style="margin-bottom:1.5rem;">
+      <div class="range-wrapper">
+        <div class="range-header"><label>Mouvement</label><span class="range-value" id="motionVal">60%</span></div>
+        <input type="range" id="motion" min="0" max="100" value="60" oninput="document.getElementById('motionVal').textContent=this.value+'%'">
+      </div>
+      <div class="range-wrapper">
+        <div class="range-header"><label>Fidélité image</label><span class="range-value" id="fidVal">70%</span></div>
+        <input type="range" id="fidelity" min="0" max="100" value="70" oninput="document.getElementById('fidVal').textContent=this.value+'%'">
+      </div>
+      <div class="range-wrapper">
+        <div class="range-header"><label>Créativité</label><span class="range-value" id="creVal">50%</span></div>
+        <input type="range" id="creativity" min="0" max="100" value="50" oninput="document.getElementById('creVal').textContent=this.value+'%'">
+      </div>
+    </div>
+
+    <button class="gen-btn" id="genBtn" onclick="generate()">
+      <span class="btn-inner">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Générer la vidéo
+      </span>
+    </button>
+
+    <div class="err-box" id="errBox"></div>
+
+    <div class="loading-panel" id="loadingPanel">
+      <div class="spinner" id="spinner"></div>
+      <div class="loading-label">Génération en cours…</div>
+      <div class="loading-sub">Wan 2.1 · Hugging Face · ~2–5 min</div>
+      <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+      <div class="steps" id="stepsList"></div>
+    </div>
+
+    <div class="output-panel" id="outputPanel">
+      <div class="out-header">
+        <span class="out-title">Vidéo générée</span>
+        <div class="out-actions">
+          <button class="act-btn" onclick="regen()">↺ Regénérer</button>
+          <button class="act-btn" id="dlBtn">↓ Télécharger</button>
+        </div>
+      </div>
+      <div class="video-frame" id="videoFrame"></div>
+    </div>
+  </div>
+
+  <footer>LUMINA Video Studio · Wan 2.1 via Hugging Face · Réservé aux +18 ans · 2026</footer>
+</div>
+
+<script>
+let mode = 'creative';
+let imageB64 = null;
+let busy = false;
+
+// AGE GATE
+function confirmAge() { sessionStorage.setItem('age_ok','1'); document.getElementById('ageGate').style.display='none'; }
+function rejectAge() { window.location.href='https://www.google.com'; }
+if (sessionStorage.getItem('age_ok')) document.getElementById('ageGate').style.display='none';
+
+// API KEY
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('lumina_hf');
+  if (saved) document.getElementById('hfKey').value = saved;
+});
+function saveKey() {
+  const val = document.getElementById('hfKey').value.trim();
+  const el = document.getElementById('keySaved');
+  if (!val || !val.startsWith('hf_')) {
+    el.textContent = '⚠ Token invalide — doit commencer par hf_';
+    el.className = 'key-saved err'; return;
+  }
+  localStorage.setItem('lumina_hf', val);
+  el.textContent = '✓ Token enregistré';
+  el.className = 'key-saved ok';
+  setTimeout(() => el.style.display='none', 2000);
+}
+
+// MODE
+const creativeChips = ['Ninja sur les toits la nuit','Explosion au ralenti','Course-poursuite en voiture','Duel à l\'épée médiéval'];
+const adultChips = ['Couple romantique à Paris','Rencontre passionnée en hôtel','Portrait sensuel éclairé à la bougie','Scène de boudoir élégante'];
+
+function setMode(m) {
+  mode = m;
+  const isAdult = m === 'adult';
+  document.getElementById('tabA').classList.toggle('active', isAdult);
+  document.getElementById('tabA').classList.toggle('adult-mode', isAdult);
+  document.getElementById('tabC').classList.toggle('active', !isAdult);
+  document.getElementById('genBtn').classList.toggle('adult', isAdult);
+  document.getElementById('pdot').className = 'pdot ' + (isAdult ? 'purple' : 'orange');
+  document.getElementById('ptext').innerHTML = isAdult
+    ? 'Mode <strong>Adulte 18+</strong> — <strong>Wan 2.1</strong> (non censuré) · Contenu adulte entre adultes consentants'
+    : 'Mode <strong>Créatif / Action</strong> — <strong>Wan 2.1</strong> via Hugging Face · Scènes d\'action, violence fictive';
+  document.getElementById('prompt').placeholder = isAdult
+    ? 'Ex : Couple élégant dans un appartement parisien, lumière tamisée, réaliste…'
+    : 'Ex : Un ninja saute entre des toits sous la pluie, néons, ralenti cinématique…';
+  document.getElementById('spinner').classList.toggle('purple', isAdult);
+  document.getElementById('progFill').classList.toggle('purple', isAdult);
+  const chips = isAdult ? adultChips : creativeChips;
+  document.getElementById('chips').innerHTML = chips.map(c => `<span class="chip" onclick="useChip(this)">${c}</span>`).join('');
+  document.getElementById('outputPanel').classList.remove('visible');
+  document.getElementById('errBox').classList.remove('visible');
+}
+
+// UPLOAD
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; });
+zone.addEventListener('dragleave', () => zone.style.borderColor='');
+zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor=''; const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) loadImage(f); });
+function handleFile(input) { if(input.files[0]) loadImage(input.files[0]); }
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageB64 = e.target.result;
+    const old = zone.querySelector('.preview-img'); if(old) old.remove();
+    const img = document.createElement('img'); img.src = imageB64; img.className = 'preview-img';
+    zone.insertBefore(img, zone.firstChild);
+    zone.querySelector('.preview-overlay').style.opacity = '';
+    zone.querySelector('.upload-icon').style.display = 'none';
+    zone.querySelector('p').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function useChip(el) { document.getElementById('prompt').value = el.textContent; }
+function toggleNeg() {
+  const w = document.getElementById('negWrap'); w.classList.toggle('open');
+  document.getElementById('negArrow').textContent = w.classList.contains('open') ? '▾' : '▸';
+}
+
+// STEPS
+function renderSteps(steps) {
+  document.getElementById('stepsList').innerHTML = steps.map((s,i) =>
+    `<div class="step" id="st${i}"><span class="sdot"></span>${s}</div>`).join('');
+}
+function animateSteps(count) {
+  const dur = Array(count).fill(0).map((_,i) => 1200 + i*500 + Math.random()*800);
+  const total = dur.reduce((a,b)=>a+b,0);
+  let elapsed=0, cum=0;
+  for(let i=0;i<count;i++){
+    const idx=i;
+    setTimeout(()=>{ if(idx>0){const p=document.getElementById(`st${idx-1}`);if(p)p.className='step done';} const c=document.getElementById(`st${idx}`);if(c)c.className='step active'; }, elapsed);
+    cum+=dur[i]; const pct=Math.round(cum/total*85); const t=elapsed+dur[i];
+    setTimeout(()=>{ document.getElementById('progFill').style.width=pct+'%'; }, t-150);
+    elapsed+=dur[i];
+  }
+}
+
+// GENERATE
+async function generate() {
+  if(busy) return;
+  const promptVal = document.getElementById('prompt').value.trim();
+  if(!promptVal){ const ta=document.getElementById('prompt'); ta.style.borderColor='var(--accent)'; ta.focus(); setTimeout(()=>ta.style.borderColor='',1500); return; }
+
+  const hfKey = localStorage.getItem('lumina_hf') || document.getElementById('hfKey').value.trim();
+  if(!hfKey || !hfKey.startsWith('hf_')){
+    showErr('⚠ Entre ton token Hugging Face (hf_...) en haut de la page !'); return;
+  }
+
+  busy=true;
+  document.getElementById('genBtn').disabled=true;
+  document.getElementById('outputPanel').classList.remove('visible');
+  document.getElementById('errBox').classList.remove('visible');
+  document.getElementById('loadingPanel').classList.add('visible');
+  document.getElementById('progFill').style.width='0%';
+
+  const steps=['Connexion à Hugging Face','Chargement du modèle Wan 2.1','Analyse du prompt','Génération frame par frame','Assemblage & encodage'];
+  renderSteps(steps); animateSteps(steps.length);
+
+  try {
+    const body = {
+      prompt: promptVal,
+      negative_prompt: document.getElementById('negPrompt').value.trim(),
+      style: document.getElementById('style').value,
+      num_frames: parseInt(document.getElementById('duration').value) * 8,
+      guidance_scale: 5 + (parseInt(document.getElementById('creativity').value)/100)*4,
+      num_inference_steps: 25 + Math.round(parseInt(document.getElementById('motion').value)/100*20),
+      hf_token: hfKey
+    };
+    if(imageB64) body.image = imageB64;
+
+    // Call our Vercel proxy — no CORS issues !
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+    if(!data.video) throw new Error('Aucune vidéo reçue');
+
+    finishOk(data.video);
+  } catch(err) {
+    finishErr(err.message);
+  }
+}
+
+function finishOk(videoUrl) {
+  document.getElementById('loadingPanel').classList.remove('visible');
+  busy=false; document.getElementById('genBtn').disabled=false;
+  document.getElementById('progFill').style.width='100%';
+  document.querySelectorAll('.steps .step').forEach(s=>s.className='step done');
+
+  const frame = document.getElementById('videoFrame');
+  frame.innerHTML = `<video src="${videoUrl}" controls autoplay loop playsinline style="width:100%;height:100%;object-fit:cover;"></video>`;
+  document.getElementById('dlBtn').onclick = () => { const a=document.createElement('a'); a.href=videoUrl; a.download='lumina-video.mp4'; a.click(); };
+  document.getElementById('outputPanel').classList.add('visible');
+  document.getElementById('outputPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function finishErr(msg) {
+  document.getElementById('loadingPanel').classList.remove('visible');
+  busy=false; document.getElementById('genBtn').disabled=false;
+  showErr(msg);
+}
+
+function showErr(msg) {
+  const box=document.getElementById('errBox');
+  box.innerHTML=`⚠ <strong>Erreur :</strong> ${msg}`;
+  box.classList.add('visible');
+}
+
+function regen() { document.getElementById('outputPanel').classList.remove('visible'); generate(); }
+</script>
+</body>
+</html>
