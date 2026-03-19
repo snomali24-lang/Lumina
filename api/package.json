@@ -1,10 +1,7 @@
 {
   "name": "lumina",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "commonjs",
-  "dependencies": {
-    "@gradio/client": "^1.0.0"
-  },
   "engines": {
     "node": "20.x"
   }
