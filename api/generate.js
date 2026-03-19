@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
       }
     };
     if (image) payload.parameters.image = image;
-    const hfRes = await fetch(`https://api-inference.huggingface.co/models/${modelId}`, {
+    const hfRes = await fetch(`https://router.huggingface.co/hf-inference/models/${modelId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${hf_token}`,
