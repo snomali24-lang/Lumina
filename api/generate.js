@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
       documentary: 'documentary, handheld camera, natural lighting'
     };
     const fullPrompt = `${prompt}. ${styleMap[style] || ''}. High quality, smooth motion, no watermark.`;
-    const modelId = image ? 'Wan-AI/Wan2.1-I2V-14B-720P' : 'Wan-AI/Wan2.1-T2V-14B';
+    const modelId = image ? 'stabilityai/stable-video-diffusion-img2vid-xt' : 'damo-vilab/text-to-video-ms-1.7b';
     const payload = {
       inputs: fullPrompt,
       parameters: {
