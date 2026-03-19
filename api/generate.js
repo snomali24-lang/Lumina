@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -44,4 +44,21 @@ export default async function handler(req, res) {
         if (errData.error) errMsg = errData.error;
         if (hfRes.status === 401) errMsg = 'Token invalide ou expiré';
         if (hfRes.status === 503) errMsg = 'Modèle en cours de chargement — réessaie dans 30 secondes';
-        if (hfRes.status ===
+        if (hfRes.status === 429) errMsg = 'Trop de requêtes — attends 1 minute';
+      } catch {}
+      return res.status(hfRes.status).json({ error: errMsg });
+    }
+    const contentType = hfRes.headers.get('content-type') || '';
+    if (contentType.includes('video') || contentType.includes('octet-stream')) {
+      const buffer = await hfRes.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      return res.status(200).json({ video: `data:video/mp4;base64,${base64}` });
+    }
+    const data = await hfRes.json();
+    if (data.video) return res.status(200).json({ video: data.video });
+    if (data[0]?.blob) return res.status(200).json({ video: `data:video/mp4;base64,${data[0].blob}` });
+    return res.status(500).json({ error: 'Format de réponse inattendu' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Erreur serveur' });
+  }
+}
