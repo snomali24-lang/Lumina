@@ -5,8 +5,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   try {
-    const { prompt, negative_prompt, style, num_frames, guidance_scale, num_inference_steps, image, hf_token } = req.body;
-    if (!hf_token || !hf_token.startsWith('hf_')) return res.status(401).json({ error: 'Token Hugging Face invalide' });
+    const { prompt, negative_prompt, style, num_frames, guidance_scale, num_inference_steps, image } = req.body;
+    const hf_token = process.env.HF_TOKEN;
+    if (!hf_token) return res.status(401).json({ error: 'Token HF manquant sur Vercel' });
     const styleMap = {
       cinematic: 'cinematic, film grain, anamorphic lens, dramatic lighting, 4K',
       realistic: 'hyperrealistic, photographic, sharp details, 8K',
@@ -43,14 +44,4 @@ export default async function handler(req, res) {
         if (errData.error) errMsg = errData.error;
         if (hfRes.status === 401) errMsg = 'Token invalide ou expiré';
         if (hfRes.status === 503) errMsg = 'Modèle en cours de chargement — réessaie dans 30 secondes';
-        if (hfRes.status === 429) errMsg = 'Trop de requêtes — attends 1 minute';
-      } catch {}
-      return res.status(hfRes.status).json({ error: errMsg });
-    }
-    const contentType = hfRes.headers.get('content-type') || '';
-    if (contentType.includes('video') || contentType.includes('octet-stream')) {
-      const buffer = await hfRes.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
-      return res.status(200).json({ video: `data:video/mp4;base64,${base64}` });
-    }
-    const data = await hfRes.js
+        if (hfRes.status ===
